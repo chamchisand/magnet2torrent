@@ -1,0 +1,27 @@
+env:
+  es6: true
+  node: true
+  mocha: true
+  commonjs: true
+extends:
+  - eslint:recommended
+  - plugin:import/errors
+  - plugin:import/warnings
+parser: babel-eslint
+parserOptions:
+  sourceType: module
+  ecmaFeatures:
+    classes: true
+    experimentalObjectRestSpread: true
+settings:
+  import/resolver: webpack
+rules:
+  linebreak-style: [ warn, unix ]
+  no-mixed-spaces-and-tabs: warn
+  arrow-spacing: warn
+  brace-style: [ warn, '1tbs' ]
+  comma-spacing: [ warn, { before: false, after: true } ]
+  comma-style: [ warn, last, { exceptions: { VariableDeclaration: true } } ]
+  computed-property-spacing: [ warn, never ]
+  no-console: off
+  no-unused-vars: warn

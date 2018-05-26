@@ -1,0 +1,15 @@
+.DS_Store
+*.sw?
+*.log
+storage
+
+# python
+venv
+fake/html
+__pycache__
+*.pyc
+*.egg-info
+
+# nodejs
+node_modules
+npm-debug.log*
