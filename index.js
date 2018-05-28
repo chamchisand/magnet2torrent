@@ -1,30 +1,27 @@
-const os = require('os')
-const fs = require('fs')
-const net = require('net')
 const hat = require('hat')
-const path = require('path')
-const bncode = require('bncode')
 const parseTorrent = require('parse-torrent')
 const Discovery = require('torrent-discovery')
-const Protocol = require('bittorrent-protocol')
-const ut_metadata = require('ut_metadata')
+const magnetLink = require('./lib/magnet-link')
+const PeerPool = require('./lib/peer-pool')
 const log = require('./lib/log')
 
-let infohash = process.argv[2]
-if (!/^magnet:/.test(infohash)) {
-  infohash = 'magnet:?xt=urn:btih:' + infohash
-}
+process.on('uncaughtException', err => {
+  log.error(err)
+  process.exit()
+});
 
-const torrent = parseTorrent(infohash)
-log(torrent)
 const peerId = Buffer.from('-TR1330-' + hat(48))
-const MAXPEER = 100
-const MAXCONN = 10
-let peers = []
-let queue = {}
-let count = 0
-let noPeerFound = setTimeout(() => process.exit(), 5000)
+const magnet = magnetLink(process.argv[2])
+const torrent = parseTorrent(magnet)
+log.debug('[torrent]', torrent)
 
+const MAX = 100
+let peerNotFound = setTimeout(() => {
+  log.debug('[peer] notfound')
+  process.exit()
+}, 5000)
+
+const pool = new PeerPool(torrent.infoHashBuffer, peerId)
 const discovery = new Discovery({
   infoHash: torrent.infoHashBuffer,
   peerId,
@@ -35,91 +32,17 @@ const discovery = new Discovery({
 })
 
 discovery.on('peer', peer => {
-  peers.push(peer)
+  log.debug('[peer]', peer)
+  pool.push(peer)
 
-  if (noPeerFound) {
-    clearTimeout(noPeerFound)
-    noPeerFound = null
+  if (peerNotFound) {
+    clearTimeout(peerNotFound)
+    peerNotFound = null
   }
 
-  if (peers.length >= MAXPEER) {
+  if (pool.len() >= MAX) {
     discovery.destroy()
   }
 
-  if (count < MAXCONN) {
-    getMetadata()
-  }
+  pool.connect()
 })
-
-function save(metadata) {
-  const decoded = bncode.decode(metadata)
-  const info = decoded.info || {}
-  const name = info.name.toString()
-  const length = info.length
-  const files = (info.files || []).map(file => {
-    return { ...file, path: file.path.toString() };
-  })
-
-  const target = path.join(__dirname, 'storage', name + '.torrent')
-  fs.writeFileSync(target, metadata)
-  console.log(JSON.stringify({ name, length, files }))
-}
-
-function getMetadata() {
-  log('connect - peers', peers.length, 'count', ++count)
-
-  const peer = peers.pop()
-  const parts = peer.split(':')
-  const socket = net.connect(parts[1], parts[0])
-  const wire = new Protocol()
-
-  socket.id = peer
-  queue[peer] = { socket, wire }
-
-  wire.use(ut_metadata())
-  wire.ut_metadata.fetch()
-  wire.ut_metadata.on('metadata', metadata => {
-    log('++ metadata ++')
-    peers = []
-
-    for (let key in queue) {
-      if (queue[key].wire) {
-        queue[key].wire.destroy()
-      }
-      queue[key].socket.destroy()
-    }
-
-    save(metadata)
-  })
-
-  socket.setTimeout(2000, () => socket.destroy());
-  socket.on('connect', () => {
-    socket.setTimeout(0)
-    wire.handshake(torrent.infoHashBuffer, peerId)
-    socket.pipe(wire).pipe(socket)
-  });
-
-  socket.on('timeout', () => socket.destroy())
-  socket.on('end', () => socket.destroy())
-  socket.on('error', () => socket.destroy())
-  socket.on('close', () => {
-    if (queue[socket.id] && queue[socket.id].wire) {
-      queue[socket.id].wire.destroy()
-    }
-    delete queue[socket.id]
-    const queueLen = Object.keys(queue).length
-    log('++ closed ++', peer, 'count', count, 'queue', queueLen, 'peers', peers.length)
-
-    if (peers.length > 0) {
-      getMetadata()
-    }
-
-    if (queueLen === 0) {
-      process.exit()
-    }
-  })
-}
-
-process.on('uncaughtException', err => {
-  fs.appendFileSync(path.join(__dirname, 'error.log'), err + os.EOL)
-});
