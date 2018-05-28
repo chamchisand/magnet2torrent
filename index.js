@@ -1,3 +1,4 @@
+const os = require('os')
 const fs = require('fs')
 const net = require('net')
 const hat = require('hat')
@@ -7,26 +8,22 @@ const parseTorrent = require('parse-torrent')
 const Discovery = require('torrent-discovery')
 const Protocol = require('bittorrent-protocol')
 const ut_metadata = require('ut_metadata')
+const log = require('./lib/log')
 
 let infohash = process.argv[2]
-
 if (!/^magnet:/.test(infohash)) {
   infohash = 'magnet:?xt=urn:btih:' + infohash
 }
 
 const torrent = parseTorrent(infohash)
+log(torrent)
 const peerId = Buffer.from('-TR1330-' + hat(48))
-// console.log(torrent)
-
 const MAXPEER = 100
 const MAXCONN = 10
-
 let peers = []
 let queue = {}
 let count = 0
-let noPeerFound = setTimeout(() => {
-  process.exit()
-}, 5000)
+let noPeerFound = setTimeout(() => process.exit(), 5000)
 
 const discovery = new Discovery({
   infoHash: torrent.infoHashBuffer,
@@ -69,19 +66,20 @@ function save(metadata) {
 }
 
 function getMetadata() {
+  log('connect - peers', peers.length, 'count', ++count)
+
   const peer = peers.pop()
   const parts = peer.split(':')
   const socket = net.connect(parts[1], parts[0])
   const wire = new Protocol()
 
-  // console.log('connect - peer', peer, 'peerlen', peers.length, 'count', ++count)
   socket.id = peer
   queue[peer] = { socket, wire }
 
   wire.use(ut_metadata())
   wire.ut_metadata.fetch()
   wire.ut_metadata.on('metadata', metadata => {
-    // console.log('++ metadata ++')
+    log('++ metadata ++')
     peers = []
 
     for (let key in queue) {
@@ -110,7 +108,7 @@ function getMetadata() {
     }
     delete queue[socket.id]
     const queueLen = Object.keys(queue).length
-    // console.log('++ closed ++', peer, 'count', count, 'queue', queueLen, 'peers', peers.length)
+    log('++ closed ++', peer, 'count', count, 'queue', queueLen, 'peers', peers.length)
 
     if (peers.length > 0) {
       getMetadata()
@@ -121,3 +119,7 @@ function getMetadata() {
     }
   })
 }
+
+process.on('uncaughtException', err => {
+  fs.appendFileSync(path.join(__dirname, 'error.log'), err + os.EOL)
+});
