@@ -1,15 +1,8 @@
 .DS_Store
 *.sw?
 *.log
-storage
-
-# python
-venv
-fake/html
-__pycache__
-*.pyc
-*.egg-info
-
-# nodejs
+*.torrrent
+logs
+tmp
 node_modules
 npm-debug.log*
