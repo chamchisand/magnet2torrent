@@ -21,28 +21,32 @@ let peerNotFound = setTimeout(() => {
   process.exit()
 }, 5000)
 
-const pool = new PeerPool(torrent.infoHashBuffer, peerId)
-const discovery = new Discovery({
-  infoHash: torrent.infoHashBuffer,
-  peerId,
-  dht: true,
-  tracker: false,
-  port: 6881,
-  announce: []
-})
+try {
+  const pool = new PeerPool(torrent.infoHashBuffer, peerId)
+  const discovery = new Discovery({
+    infoHash: torrent.infoHashBuffer,
+    peerId,
+    dht: true,
+    tracker: false,
+    port: 6881,
+    announce: []
+  })
 
-discovery.on('peer', peer => {
-  log.debug('[peer]', peer)
-  pool.push(peer)
+  discovery.on('peer', peer => {
+    log.debug('[peer]', peer)
+    pool.push(peer)
 
-  if (peerNotFound) {
-    clearTimeout(peerNotFound)
-    peerNotFound = null
-  }
+    if (peerNotFound) {
+      clearTimeout(peerNotFound)
+      peerNotFound = null
+    }
 
-  if (pool.len() >= MAX) {
-    discovery.destroy()
-  }
+    if (pool.len() >= MAX) {
+      discovery.destroy()
+    }
 
-  pool.connect()
-})
+    pool.connect()
+  })
+} catch (e) {
+  log.error(e)
+}
