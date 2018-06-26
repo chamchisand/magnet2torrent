@@ -34,7 +34,10 @@ try {
 
   discovery.on('peer', peer => {
     log.debug('[peer]', peer)
-    pool.push(peer)
+
+    if (pool.push(peer)) {
+      pool.connect()
+    }
 
     if (peerNotFound) {
       clearTimeout(peerNotFound)
@@ -44,8 +47,6 @@ try {
     if (pool.len() >= MAX) {
       discovery.destroy()
     }
-
-    pool.connect()
   })
 } catch (e) {
   log.error(e)
