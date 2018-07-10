@@ -1,7 +1,7 @@
 {
-  "name": "m2t",
+  "name": "magnet2torrent",
   "version": "1.0.0",
-  "description": "",
+  "description": "Convert magnet to torrent",
   "main": "index.js",
   "dependencies": {
     "bittorrent-peerid": "^1.2.0",
