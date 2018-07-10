@@ -1,3 +1,3 @@
 # magnet2torrent
 
-node index.js infohash [-d|--debug] [--tmp-dir=PATH] [--log-dir=PATH] 
+node index.js infohash [-d|--debug] [--save=1|0] [--tmp-dir=PATH] [--log-dir=PATH] 
